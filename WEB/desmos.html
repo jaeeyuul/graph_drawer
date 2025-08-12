@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mini‑Desmos: 텍스트 → 그래프</title>
+  <style>
+    :root{
+      --bg:#0b1020; --fg:#e8ecf4; --muted:#9fb0cc; --card:#121a33; --accent:#6aa6ff; --grid:#1b2547;
+    }
+    *{box-sizing:border-box}
+    body{margin:0; font:15px/1.55 system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans KR", Arial, sans-serif; background:var(--bg); color:var(--fg)}
+    .wrap{display:grid; grid-template-columns:360px 1fr; min-height:100vh}
+    .side{background:var(--card); border-right:1px solid rgba(255,255,255,.06); padding:16px; gap:12px; display:flex; flex-direction:column}
+    .logo{font-weight:800; letter-spacing:.3px}
+    textarea, input{width:100%; background:#0a0f1f; color:var(--fg); border:1px solid rgba(255,255,255,.12); border-radius:10px; padding:10px; font-family:ui-monospace, SFMono-Regular, Menlo, monospace}
+    .row{display:grid; grid-template-columns:repeat(4, 1fr); gap:8px}
+    .row label{font-size:12px; color:var(--muted)}
+    .btn{background:#0a0f1f; color:var(--fg); border:1px solid rgba(255,255,255,.2); border-radius:10px; padding:10px 12px; cursor:pointer}
+    .btn:hover{transform:translateY(-1px)}
+    .muted{color:var(--muted)}
+    canvas{display:block; width:100%; height:100%; background:linear-gradient(#0c1329, #0c1222)}
+    .help{font-size:12px; color:var(--muted)}
+    .chips{display:flex; flex-wrap:wrap; gap:6px}
+    .chip{border:1px solid rgba(255,255,255,.15); border-radius:999px; padding:4px 8px; font-size:12px; cursor:pointer}
+    @media (max-width:900px){ .wrap{grid-template-columns:1fr} .side{order:2; min-height:50vh} }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <aside class="side">
+      <div class="logo">Mini‑Desmos <span class="muted">(텍스트 → 그래프)</span></div>
+      <div>
+        <label class="muted">식 입력 (한 줄에 하나):</label>
+        <textarea id="expr" rows="8" placeholder="예)
+ y = sin(x)
+ cos(2*x)
+ (x^3 - x) / 5
+ y = |x|  // abs(x)
+ y = e^(−x^2)
+        "></textarea>
+      </div>
+      <div class="chips">
+        <span class="chip" onclick="insert('y = sin(x)')">sin</span>
+        <span class="chip" onclick="insert('y = cos(x)')">cos</span>
+        <span class="chip" onclick="insert('y = tan(x)')">tan</span>
+        <span class="chip" onclick="insert('y = exp(-x^2)')">exp</span>
+        <span class="chip" onclick="insert('y = log(x)')">log</span>
+        <span class="chip" onclick="insert('y = sqrt(|x|)')">sqrt</span>
+        <span class="chip" onclick="insert('y = |x|')">abs</span>
+      </div>
+      <div class="row">
+        <div>
+          <label>xmin</label>
+          <input id="xmin" value="-10" />
+        </div>
+        <div>
+          <label>xmax</label>
+          <input id="xmax" value="10" />
+        </div>
+        <div>
+          <label>ymin</label>
+          <input id="ymin" value="-5" />
+        </div>
+        <div>
+          <label>ymax</label>
+          <input id="ymax" value="5" />
+        </div>
+      </div>
+      <div class="row">
+        <button class="btn" onclick="drawAll()">그리기</button>
+        <button class="btn" onclick="resetView()">뷰 초기화</button>
+        <button class="btn" onclick="toggleGrid()">그리드</button>
+        <button class="btn" onclick="downloadPNG()">PNG 저장</button>
+      </div>
+      <div class="help">
+        • <b>연산자</b>: + - * / ^  (지수는 <code>^</code> 사용, 내부에서 <code>**</code>로 변환)<br>
+        • <b>함수</b>: sin, cos, tan, asin, acos, atan, sinh, cosh, tanh, exp, log, sqrt, abs, floor, ceil, round, sign, min, max, pow<br>
+        • <b>상수</b>: pi, e  (대/소문자 무관)<br>
+        • <b>입력형식</b>: <code>y = 식</code> 또는 그냥 <code>식</code> (예: <code>sin(x)</code>)<br>
+        • 여러 식은 줄바꿈으로 구분. 오류가 있으면 해당 식만 건너뜀.
+      </div>
+    </aside>
+
+    <main>
+      <canvas id="cv"></canvas>
+    </main>
+  </div>
+
+<script>
+// ======= 상태 =======
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+let gridOn = true;
+let view = { xmin:-10, xmax:10, ymin:-5, ymax:5 };
+const colors = [
+  '#7dd3fc','#a78bfa','#f472b6','#fb7185','#fbbf24','#34d399','#60a5fa','#f59e0b'
+];
+
+function resize(){ cv.width = cv.clientWidth; cv.height = window.innerHeight; drawAll(); }
+window.addEventListener('resize', resize);
+setTimeout(resize, 0);
+
+// ======= 유틸 =======
+const $ = id => document.getElementById(id);
+function insert(s){ const t=$('expr'); t.value = (t.value.trim()+"\n"+s).trim(); }
+function toNum(v,def){ const n=Number(v); return Number.isFinite(n)?n:def; }
+function resetView(){ view={ xmin:toNum($('xmin').value,-10), xmax:toNum($('xmax').value,10), ymin:toNum($('ymin').value,-5), ymax:toNum($('ymax').value,5) }; drawAll(); }
+function toggleGrid(){ gridOn = !gridOn; drawAll(); }
+
+// 좌표 변환
+function x2px(x){ return (x - view.xmin) * (cv.width/(view.xmax-view.xmin)); }
+function y2px(y){ return (view.ymax - y) * (cv.height/(view.ymax-view.ymin)); }
+function px2x(px){ return view.xmin + px*(view.xmax-view.xmin)/cv.width; }
+function px2y(py){ return view.ymax - py*(view.ymax-view.ymin)/cv.height; }
+
+// ======= 파서/평가기 =======
+const SAFE_FUNCS = {
+  sin:Math.sin, cos:Math.cos, tan:Math.tan,
+  asin:Math.asin, acos:Math.acos, atan:Math.atan,
+  sinh:Math.sinh||((x)=> (Math.exp(x)-Math.exp(-x))/2),
+  cosh:Math.cosh||((x)=> (Math.exp(x)+Math.exp(-x))/2),
+  tanh:Math.tanh||((x)=> {const e1=Math.exp(x), e2=Math.exp(-x); return (e1-e2)/(e1+e2);}),
+  exp:Math.exp, log:Math.log, sqrt:Math.sqrt, abs:Math.abs,
+  floor:Math.floor, ceil:Math.ceil, round:Math.round, sign:Math.sign,
+  min:Math.min, max:Math.max, pow:Math.pow
+};
+const CONSTS = { pi:Math.PI, e:Math.E };
+
+function compileExpr(src){
+  // 주석 제거
+  src = src.replace(/\/\/.*$/g, '').trim();
+  if(!src) throw new Error('empty');
+  // "y = expr" 허용
+  src = src.replace(/^\s*y\s*=\s*/i, '');
+  // 절댓값 표기 |x| -> abs(x)
+  src = src.replace(/\|([^|]+)\|/g, 'abs($1)');
+  // 거듭제곱 ^ -> **
+  src = src.replace(/\^/g, '**');
+  // 허용 문자 검사
+  const ok = /^[0-9+\-*/()., xseinpacgqrtmoldf|_ \[\]]+$/i; // 대략적 필터 (세부는 함수 맵으로 제한)
+  if(!ok.test(src)) throw new Error('invalid char');
+  // 토큰 치환: 상수
+  src = src.replace(/\bpi\b/gi, 'PI').replace(/\be\b/gi, 'E');
+  // with-스코프로 안전한 평가기 구성
+  const argNames = ['x','PI','E', ...Object.keys(SAFE_FUNCS)];
+  const argVals  = [ 0, Math.PI, Math.E, ...Object.values(SAFE_FUNCS) ];
+  const fn = new Function(...argNames, `return ( ${src} );`);
+  return x => {
+    try{ return fn(x, Math.PI, Math.E, ...Object.values(SAFE_FUNCS)); }
+    catch(e){ return NaN; }
+  }
+}
+
+function parseLines(){
+  const lines = $('expr').value.split(/\n+/).map(s=>s.trim()).filter(Boolean);
+  const fs = [];
+  for(const line of lines){
+    try { fs.push({ src: line, f: compileExpr(line) }); }
+    catch(e){ console.warn('skip line:', line, e.message); }
+  }
+  return fs;
+}
+
+// ======= 그리기 =======
+function drawGrid(){
+  if(!gridOn) return;
+  ctx.save();
+  ctx.strokeStyle = '#1b2547';
+  ctx.lineWidth = 1;
+  const stepX = niceStep((view.xmax-view.xmin)/10);
+  const stepY = niceStep((view.ymax-view.ymin)/8);
+  // 수직선
+  for(let x = Math.ceil(view.xmin/stepX)*stepX; x<=view.xmax; x+=stepX){
+    const px = x2px(x); ctx.beginPath(); ctx.moveTo(px,0); ctx.lineTo(px,cv.height); ctx.stroke();
+    // 눈금 라벨
+    ctx.fillStyle = 'rgba(232,236,244,.7)'; ctx.font = '12px ui-monospace';
+    ctx.fillText(formatNum(x), px+3, Math.min(cv.height-4, y2px(0)-3));
+  }
+  // 수평선
+  for(let y = Math.ceil(view.ymin/stepY)*stepY; y<=view.ymax; y+=stepY){
+    const py = y2px(y); ctx.beginPath(); ctx.moveTo(0,py); ctx.lineTo(cv.width,py); ctx.stroke();
+    ctx.fillStyle = 'rgba(232,236,244,.7)'; ctx.font = '12px ui-monospace';
+    ctx.fillText(formatNum(y), Math.min(cv.width-34, x2px(0)+6), py-2);
+  }
+  // 축
+  ctx.strokeStyle = 'rgba(255,255,255,.9)';
+  ctx.lineWidth = 1.5;
+  // x축
+  if(view.ymin < 0 && view.ymax > 0){ const py = y2px(0); ctx.beginPath(); ctx.moveTo(0,py); ctx.lineTo(cv.width,py); ctx.stroke(); }
+  // y축
+  if(view.xmin < 0 && view.xmax > 0){ const px = x2px(0); ctx.beginPath(); ctx.moveTo(px,0); ctx.lineTo(px,cv.height); ctx.stroke(); }
+  ctx.restore();
+}
+
+function niceStep(span){
+  const raw = span;
+  const pow = Math.pow(10, Math.floor(Math.log10(raw)));
+  const n = raw / pow;
+  let step = pow;
+  if(n < 2) step = 0.2*pow; else if(n < 5) step = 0.5*pow; else step = 1*pow;
+  return step;
+}
+function formatNum(x){
+  if(!Number.isFinite(x)) return '';
+  const ax = Math.abs(x);
+  if(ax===0) return '0';
+  if(ax>=1e4 || ax<1e-3) return x.toExponential(1);
+  return String(Number(x.toFixed(4))); 
+}
+
+function drawFunc(f, color){
+  const N = Math.max(400, cv.width); // 해상도에 비례
+  ctx.save();
+  ctx.strokeStyle = color; ctx.lineWidth = 2;
+  ctx.beginPath();
+  let penDown = false;
+  let prevY = null;
+  for(let i=0;i<=N;i++){
+    const x = view.xmin + (view.xmax-view.xmin)*i/N;
+    const y = f(x);
+    if(!Number.isFinite(y)) { penDown=false; continue; }
+    const px = x2px(x), py = y2px(y);
+    // 큰 점프(불연속) 끊기
+    if(prevY!=null && Math.abs(y-prevY) > (view.ymax-view.ymin)*0.25){ penDown=false; }
+    if(!penDown){ ctx.moveTo(px, py); penDown=true; }
+    else ctx.lineTo(px, py);
+    prevY = y;
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawAll(){
+  // 뷰 갱신(사이드 패널 값 → view)
+  view.xmin = toNum($('xmin').value, view.xmin);
+  view.xmax = toNum($('xmax').value, view.xmax);
+  view.ymin = toNum($('ymin').value, view.ymin);
+  view.ymax = toNum($('ymax').value, view.ymax);
+  // 캔버스 클리어
+  ctx.clearRect(0,0,cv.width,cv.height);
+  drawGrid();
+  const fs = parseLines();
+  fs.forEach((o,idx)=> drawFunc(o.f, colors[idx % colors.length]));
+}
+
+// ======= 인터랙션: 드래그/줌 =======
+let isDragging=false, dragStart=null, dragView=null;
+cv.addEventListener('mousedown', (e)=>{ isDragging=true; dragStart={x:e.offsetX,y:e.offsetY}; dragView={...view}; });
+window.addEventListener('mouseup', ()=> isDragging=false);
+cv.addEventListener('mousemove', (e)=>{
+  if(!isDragging) return;
+  const dx = e.offsetX - dragStart.x; const dy = e.offsetY - dragStart.y;
+  const sx = (view.xmax-view.xmin)/cv.width; const sy = (view.ymax-view.ymin)/cv.height;
+  view.xmin = dragView.xmin - dx*sx; view.xmax = dragView.xmax - dx*sx;
+  view.ymin = dragView.ymin + dy*sy; view.ymax = dragView.ymax + dy*sy;
+  drawAll();
+});
+cv.addEventListener('wheel', (e)=>{
+  e.preventDefault();
+  const mx = px2x(e.offsetX), my = px2y(e.offsetY);
+  const scale = (e.deltaY<0) ? 0.9 : 1.1; // 줌 인/아웃
+  const nxmin = mx + (view.xmin-mx)*scale;
+  const nxmax = mx + (view.xmax-mx)*scale;
+  const nymin = my + (view.ymin-my)*scale;
+  const nymax = my + (view.ymax-my)*scale;
+  view = { xmin:nxmin, xmax:nxmax, ymin:nymin, ymax:nymax };
+  $('xmin').value = view.xmin.toFixed(4);
+  $('xmax').value = view.xmax.toFixed(4);
+  $('ymin').value = view.ymin.toFixed(4);
+  $('ymax').value = view.ymax.toFixed(4);
+  drawAll();
+},{passive:false});
+
+function downloadPNG(){
+  const a = document.createElement('a');
+  a.download = 'plot.png';
+  a.href = cv.toDataURL('image/png');
+  a.click();
+}
+
+// 초기값
+$('expr').value = 'y = sin(x)\ny = (x^3-x)/5';
+resetView();
+</script>
+</body>
+</html>

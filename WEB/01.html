@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>광컴퓨팅(Photonic Computing) 지식 노트</title>
+  <meta name="description" content="광컴퓨팅의 개요, 핵심 소자, 연산 패러다임, 장단점, 응용, 용어 사전 등을 한눈에 정리한 단일 웹페이지." />
+  <style>
+    :root{
+      --bg:#0b1020; --fg:#e8ecf4; --muted:#9fb0cc; --card:#121a33; --accent:#6aa6ff; --accent-2:#8ef; --ok:#4ade80; --warn:#fbbf24; --bad:#fb7185;
+      --shadow:0 10px 24px rgba(0,0,0,.25), 0 2px 8px rgba(0,0,0,.2);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0; font:16px/1.6 "Inter", system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; background:var(--bg); color:var(--fg)}
+    a{color:var(--accent)}
+    .container{max-width:1150px; margin:auto; padding:24px}
+    header{position:sticky; top:0; backdrop-filter: blur(10px); background:rgba(11,16,32,.7); border-bottom:1px solid rgba(255,255,255,.08); z-index:100}
+    .nav{display:flex; align-items:center; gap:16px; justify-content:space-between}
+    .nav a{font-weight:600; text-decoration:none; color:var(--muted)}
+    .nav .links{display:flex; gap:16px; overflow:auto}
+    .btn{display:inline-flex; align-items:center; gap:10px; padding:10px 14px; border-radius:12px; background:var(--card); color:var(--fg); border:1px solid rgba(255,255,255,.08); box-shadow:var(--shadow)}
+    .btn:hover{transform:translateY(-1px)}
+    .hero{display:grid; grid-template-columns:1.2fr .8fr; gap:24px; align-items:center; padding:28px 0}
+    .card{background:var(--card); border:1px solid rgba(255,255,255,.06); border-radius:18px; padding:22px; box-shadow:var(--shadow)}
+    h1{font-size:clamp(28px, 4vw, 40px); line-height:1.2; margin:8px 0}
+    h2{font-size:clamp(22px, 3vw, 28px); margin:28px 0 12px}
+    h3{font-size:18px; margin:18px 0 8px; color:var(--accent-2)}
+    .kicker{letter-spacing:.15em; text-transform:uppercase; color:var(--accent-2); font-weight:700}
+    .grid{display:grid; gap:16px}
+    .grid.cols-3{grid-template-columns:repeat(3, 1fr)}
+    .grid.cols-2{grid-template-columns:repeat(2, 1fr)}
+    @media (max-width:900px){ .hero{grid-template-columns:1fr} .grid.cols-3{grid-template-columns:1fr} .grid.cols-2{grid-template-columns:1fr}}
+    .tag{display:inline-block; padding:4px 10px; border-radius:999px; border:1px solid rgba(255,255,255,.1); color:var(--muted); font-size:12px; margin-right:6px}
+    .kbd{font-family:ui-monospace, SFMono-Regular, Menlo, monospace; background:#0a0f1f; border:1px solid rgba(255,255,255,.12); padding:2px 6px; border-radius:6px; font-size:.92em}
+    details{background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.06); border-radius:12px; padding:10px 14px}
+    details[open]{background:rgba(255,255,255,.05)}
+    summary{cursor:pointer; font-weight:600}
+    .callout{border-left:4px solid var(--accent); padding:10px 12px; background:rgba(106,166,255,.08); border-radius:8px}
+    .inline-math{font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color:#c1e9ff}
+    .table{width:100%; border-collapse:collapse; overflow:hidden; border-radius:12px; border:1px solid rgba(255,255,255,.08)}
+    .table th,.table td{padding:12px 14px; border-bottom:1px solid rgba(255,255,255,.06); vertical-align:top}
+    .table th{background:rgba(255,255,255,.05); text-align:left}
+    .badge{font-size:12px; padding:2px 8px; border-radius:8px; font-weight:700}
+    .ok{background:rgba(74,222,128,.15); color:#bdf7ce}
+    .warn{background:rgba(251,191,36,.15); color:#ffe2a8}
+    .bad{background:rgba(251,113,133,.15); color:#ffd0d8}
+    footer{opacity:.7; font-size:13px; padding:24px 0}
+    .search{display:flex; gap:10px; align-items:center}
+    .search input{flex:1; padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,.12); background:#0a0f1f; color:var(--fg)}
+    .chip{display:inline-flex; gap:8px; align-items:center; padding:8px 10px; border:1px solid rgba(255,255,255,.12); border-radius:999px}
+    .muted{color:var(--muted)}
+    .small{font-size:13px}
+    .toc a{display:inline-block; margin:6px 8px 0 0}
+    code{background:#0a0f1f; border:1px solid rgba(255,255,255,.12); padding:2px 6px; border-radius:6px}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container nav">
+      <div style="display:flex;gap:10px;align-items:center">
+        <span class="chip"><span style="width:10px;height:10px;border-radius:50%;background:var(--accent);"></span> Photonic Computing</span>
+        <strong>지식 노트</strong>
+      </div>
+      <nav class="links toc">
+        <a href="#about">개요</a>
+        <a href="#devices">핵심 소자</a>
+        <a href="#paradigms">연산 패러다임</a>
+        <a href="#proscons">장단점</a>
+        <a href="#applications">응용</a>
+        <a href="#math">수식</a>
+        <a href="#glossary">용어</a>
+        <a href="#refs">참고</a>
+      </nav>
+      <button class="btn" id="themeBtn" title="다크/라이트">🌓 테마</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="hero">
+      <div class="card">
+        <div class="kicker">One Page Handbook</div>
+        <h1>광컴퓨팅(Photonic Computing) 핵심 정리</h1>
+        <p class="muted">빛(광자)의 위상·진폭·편광을 정보로 사용해 연산을 수행하는 컴퓨팅 패러다임. 전자의 이동 대신 간섭과 굴절을 이용해 <strong>초고속·저지연·저전력</strong> 연산을 지향한다.</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 4px">
+          <span class="tag">MZI Mesh</span>
+          <span class="tag">Ring Resonator</span>
+          <span class="tag">Silicon Photonics</span>
+          <span class="tag">Ising Machine</span>
+          <span class="tag">Ternary Optical Computer</span>
+        </div>
+        <div class="callout" style="margin-top:12px">
+          <strong>핵심 한 줄</strong>: 광학은 선형 시스템에 강하다 → <span class="inline-math">y = W x</span> 형태의 대규모 행렬 연산을 <em>수동적 간섭망</em>으로 물리적으로 구현 가능.
+        </div>
+        <div class="search" style="margin-top:16px">
+          <input id="filterInput" type="search" placeholder="키워드로 섹션 필터 (예: MZI, Ising, 3진수, 행렬)" />
+          <button class="btn" onclick="filterSections()">검색</button>
+        </div>
+      </div>
+      <div class="grid">
+        <div class="card">
+          <h3>이 페이지 구성</h3>
+          <p class="small muted">개요 → 소자 → 패러다임 → 장단점 → 응용 → 수식 → 용어 → 참고
+          </p>
+          <div class="toc">
+            <a class="tag" href="#about">개요</a>
+            <a class="tag" href="#devices">소자</a>
+            <a class="tag" href="#paradigms">패러다임</a>
+            <a class="tag" href="#proscons">장단점</a>
+            <a class="tag" href="#applications">응용</a>
+            <a class="tag" href="#math">수식</a>
+            <a class="tag" href="#glossary">용어</a>
+            <a class="tag" href="#refs">참고</a>
+          </div>
+        </div>
+        <div class="card">
+          <h3>빠른 키 포인트</h3>
+          <ul class="small">
+            <li>광 간섭망(MZI mesh)으로 <b>행렬 곱</b>을 하드웨어에 매핑</li>
+            <li>링 공진기/위상변조기로 <b>가중치</b> 조절</li>
+            <li>SOA/레이저 기반으로 <b>비선형성</b> 확보(필요 시)</li>
+            <li>아이징 머신은 <b>최적화</b> 문제를 물리적 완화로 근사</li>
+            <li>3진수(TOC) 등 <b>다진수 논리</b> 시도 존재</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="about" class="card section">
+      <h2>1) 개요</h2>
+      <p>광컴퓨팅은 전자 이동 대신 광자의 전파·간섭을 이용해 정보를 처리한다. 반도체 레이저/변조기/도파로(파장가이드)로 구성된 집적 광학 회로(실리콘 포토닉스 등) 위에서 동작한다. 메모리·비선형 소자가 제한되므로 <em>선형 연산(특히 대규모 행렬)</em>에 자연스럽게 강점을 보인다.</p>
+      <details>
+        <summary>왜 지금 광컴퓨팅인가?</summary>
+        <ul>
+          <li>데이터 이동 비용(메모리-연산 간 <span class="inline-math">\u2192</span> <b>메모리 벽</b>)이 병목</li>
+          <li>광은 낮은 대역폭 지연·다중화(WDM)·장거리 손실 이점</li>
+          <li>AI 학습/추론의 대규모 <span class="inline-math">y = Wx</span> 패턴이 광학 물리와 잘 맞음</li>
+        </ul>
+      </details>
+    </section>
+
+    <section id="devices" class="card section" data-tags="MZI, 링, 위상, SOA, 포토닉 크리스탈, 실리콘">
+      <h2>2) 핵심 소자</h2>
+      <div class="grid cols-3">
+        <div>
+          <h3>MZI (Mach–Zehnder Interferometer)</h3>
+          <p class="small muted">두 경로 위상차로 출력을 조절하는 기본 간섭 소자. 가중치(위상) 조정의 기본 블록.</p>
+          <code>2x2 빔스플리터 + 위상 시프터 + 2x2 결합기</code>
+        </div>
+        <div>
+          <h3>Ring Resonator</h3>
+          <p class="small muted">공진 조건에서 특정 파장만 강하게 결합/차단. 필터링·가중치·메모리 유사 저장시간(한정).</p>
+        </div>
+        <div>
+          <h3>Phase Modulator</h3>
+          <p class="small muted">전압·열·광에 의해 위상을 바꿈. 실리콘 포토닉스에선 PN/PiN, 열광학 방식이 흔함.</p>
+        </div>
+        <div>
+          <h3>SOA (Semiconductor Optical Amplifier)</h3>
+          <p class="small muted">광 증폭 소자. 포화 효과로 비선형성 제공. SNR/잡음·열설계 고려 필요.</p>
+        </div>
+        <div>
+          <h3>Photonic Crystal</h3>
+          <p class="small muted">주기적 굴절률로 밴드갭 형성. 초소형·고Q 공진기/웨이브가이드 구현.</p>
+        </div>
+        <div>
+          <h3>Silicon Photonics</h3>
+          <p class="small muted">CMOS 공정 호환 집적광학 플랫폼. 전자·광 통합이 용이.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="paradigms" class="card section" data-tags="행렬, Ising, 레이저, 신경망, 불 대수, 3진수">
+      <h2>3) 연산 패러다임</h2>
+      <div class="grid cols-2">
+        <div>
+          <h3>선형광학 행렬연산</h3>
+          <p class="small muted">MZI mesh (Clements/Reck 구조)로 임의의 유니터리 행렬을 근사 구현. 가중치=위상.</p>
+          <ul class="small">
+            <li>장점: 대역폭·병렬성(WDM, 공간 다중화)</li>
+            <li>과제: 재구성 오류, 온도 드리프트, 캘리브레이션</li>
+          </ul>
+        </div>
+        <div>
+          <h3>동역학적/아날로그 계산</h3>
+          <p class="small muted">레이저 네트워크/커플드 공진기 등에서 안정상태를 해로 해석. 예) 광 아이징 머신.</p>
+        </div>
+        <div>
+          <h3>광 논리(불 대수)</h3>
+          <p class="small muted">SOA 게인 포화/간섭을 이용한 AND/OR/NOT. 대규모 스케일은 손실·누적오차 고려.</p>
+        </div>
+        <div>
+          <h3>다진수 논리 (예: 3진수)</h3>
+          <p class="small muted">강도·위상·편광 등 다값 신호를 디지털화. 예시: Ternary Optical Computer(TOC) 개념.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="proscons" class="card section" data-tags="장점, 한계, 전력, 지연, 확장성">
+      <h2>4) 장단점 요약</h2>
+      <table class="table">
+        <thead><tr><th style="width:46%">장점</th><th>설명</th><th>메모</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="badge ok">대역폭/병렬성</span></td>
+            <td>WDM·공간 다중화로 대규모 동시 연산</td>
+            <td>통신/AI 가속에 적합</td>
+          </tr>
+          <tr>
+            <td><span class="badge ok">저지연·전송 손실 우수</span></td>
+            <td>포토닉 링크의 전파 속도·장거리 이점</td>
+            <td>칩간/랙간 인터커넥트 강점</td>
+          </tr>
+          <tr>
+            <td><span class="badge warn">비선형성/메모리 한계</span></td>
+            <td>순수 광학으로 강한 비선형 구현이 어렵다</td>
+            <td>전자 하이브리드로 보완</td>
+          </tr>
+          <tr>
+            <td><span class="badge warn">정밀 제어 필요</span></td>
+            <td>열 드리프트/공정 변동성으로 캘리브레이션 비용</td>
+            <td>피드백·자체보정 회로 필요</td>
+          </tr>
+          <tr>
+            <td><span class="badge bad">범용성 제한</span></td>
+            <td>선형 연산 편향. 범용 컴퓨팅 대체는 아직 이르다</td>
+            <td>특화 가속기로 포지셔닝</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="applications" class="card section" data-tags="AI, 통신, 최적화, 센서">
+      <h2>5) 응용 분야</h2>
+      <div class="grid cols-2">
+        <div>
+          <h3>AI/신호처리 가속</h3>
+          <p class="small muted">광학 MAC(곱-누산)으로 CNN/변환기 형태의 대형 행렬 연산 가속.</p>
+        </div>
+        <div>
+          <h3>최적화/조합문제</h3>
+          <p class="small muted">Ising 모델을 이용해 맥스컷, VRP 등 근사해 탐색.</p>
+        </div>
+        <div>
+          <h3>데이터 센터/인터커넥트</h3>
+          <p class="small muted">광 스위칭/라우팅, 랙 간 저지연 고대역 폭 링크.</p>
+        </div>
+        <div>
+          <h3>센서·계측</h3>
+          <p class="small muted">간섭계 기반 고감도 측정, LIDAR 보조 연산.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="math" class="card section" data-tags="행렬, Clements, Reck, 유니터리">
+      <h2>6) 수식/모델 한 눈에</h2>
+      <div class="callout small">
+        유니터리 분해(Clements/Reck)로 목표 행렬 <span class="inline-math">W</span>를 MZI 격자 위상값 집합 <span class="inline-math">\{\phi_i, \theta_i\}</span>로 매핑.
+      </div>
+      <pre class="small" style="white-space:pre-wrap">입력 x ∈ ℝⁿ (또는 복소수) → MZI mesh U(Φ, Θ) → 출력 y = Ux
+손실/비유니터리 보정: 가중치 스케일러·증폭기·오프칩 정규화</pre>
+      <details>
+        <summary>Ising 머신 최소화 문제</summary>
+        <pre class="small">minimize  E(s) = − Σ_{i<j} J_{ij} s_i s_j − Σ_i h_i s_i,   s_i ∈ {−1, +1}
+광학 구현: 결합된 공진기/레이저의 상호작용이 J_ij를 상징, 안정상태가 근사해</pre>
+      </details>
+    </section>
+
+    <section id="glossary" class="card section" data-tags="용어, 사전, Glossary">
+      <h2>7) 용어 사전 (핵심만)</h2>
+      <ul class="small">
+        <li><b>MZI</b>: 두 경로 간 위상차로 간섭 출력을 제어하는 간섭기</li>
+        <li><b>Ring Resonator</b>: 고Q 공진기로 파장 선택/지연/가중치 구현</li>
+        <li><b>SOA</b>: 반도체 광증폭기. 게인 포화·비선형성 제공</li>
+        <li><b>WDM</b>: 파장 다중화. 여러 파장을 한 도파로로 동시에 전송</li>
+        <li><b>Silicon Photonics</b>: CMOS 기반 집적 광학 플랫폼</li>
+        <li><b>Clements/Reck</b>: 유니터리 행렬을 MZI 배열로 분해하는 방식</li>
+        <li><b>Ising Machine</b>: 이징 모델의 에너지 최소화로 조합최적화 근사</li>
+        <li><b>TOC</b>: Ternary Optical Computer, 3진 논리 광컴 개념</li>
+      </ul>
+    </section>
+
+    <section id="refs" class="card section" data-tags="참고, 레퍼런스, 논문">
+      <h2>8) 참고/추가 학습</h2>
+      <p class="small muted">아래는 스스로 추가할 링크 자리입니다. (논문/리뷰/랩 홈페이지)</p>
+      <ul class="small">
+        <li>Review: Integrated Photonics for AI Acceleration — (리뷰 논문 링크 추가)</li>
+        <li>MZI Mesh Decomposition (Clements 2016 / Reck 1994) — (링크 추가)</li>
+        <li>Optical Ising Machines — (링크 추가)</li>
+        <li>Ternary Optical Computer (TOC) — (링크 추가)</li>
+        <li>국내 연구실(예: KAIST, POSTECH, SNU 등 실리콘 포토닉스/광계산 관련) — (링크 추가)</li>
+      </ul>
+      <details>
+        <summary>메모</summary>
+        <p class="small muted">최신 자료를 넣을 때는 연도/주제/핵심 기여를 1줄로 요약해 두면 정리 품질이 올라갑니다.</p>
+      </details>
+    </section>
+
+    <section class="card section" id="notes">
+      <h2>9) 개인 메모</h2>
+      <p class="small muted">여기에 공부 중 발견/실험/질문을 기록하세요. 페이지 내 검색 상단 필터로 빠르게 찾을 수 있습니다.</p>
+      <textarea id="memo" placeholder="메모를 적어보세요" style="width:100%;min-height:120px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:#0a0f1f;color:var(--fg);padding:12px"></textarea>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn" onclick="saveMemo()">메모 저장</button>
+        <span id="saveStatus" class="small muted"></span>
+      </div>
+    </section>
+
+    <footer class="container">
+      <div class="muted small">© 2025 Photonic Notes. 이 페이지는 교육용 요약입니다. 최신 연구는 직접 논문과 공식 출처를 확인하세요.</div>
+    </footer>
+  </main>
+
+  <script>
+    // 다크/라이트 테마 토글 (로컬 저장)
+    const themeBtn = document.getElementById('themeBtn');
+    function setTheme(mode){
+      if(mode==='light'){
+        document.documentElement.style.setProperty('--bg', '#f8fbff');
+        document.documentElement.style.setProperty('--fg', '#0b1020');
+        document.documentElement.style.setProperty('--muted', '#3c4b6b');
+        document.documentElement.style.setProperty('--card', '#ffffff');
+        document.documentElement.style.setProperty('--accent', '#335dff');
+        document.documentElement.style.setProperty('--accent-2', '#004fee');
+      } else {
+        document.documentElement.style.removeProperty('--bg');
+        document.documentElement.style.removeProperty('--fg');
+        document.documentElement.style.removeProperty('--muted');
+        document.documentElement.style.removeProperty('--card');
+        document.documentElement.style.removeProperty('--accent');
+        document.documentElement.style.removeProperty('--accent-2');
+      }
+      localStorage.setItem('pc_theme', mode);
+    }
+    themeBtn.addEventListener('click', ()=>{
+      const cur = localStorage.getItem('pc_theme') || 'dark';
+      setTheme(cur==='dark' ? 'light' : 'dark');
+    });
+    (function(){ const saved = localStorage.getItem('pc_theme'); if(saved) setTheme(saved); })();
+
+    // 섹션 필터
+    function filterSections(){
+      const q = (document.getElementById('filterInput').value || '').trim().toLowerCase();
+      document.querySelectorAll('.section').forEach(sec=>{
+        const tags = (sec.getAttribute('data-tags')||'').toLowerCase();
+        const text = sec.innerText.toLowerCase();
+        const show = !q || tags.includes(q) || text.includes(q);
+        sec.style.display = show ? '' : 'none';
+      });
+    }
+
+    // 메모 저장
+    const memoEl = document.getElementById('memo');
+    const statusEl = document.getElementById('saveStatus');
+    const KEY = 'pc_user_memo_v1';
+    function saveMemo(){
+      localStorage.setItem(KEY, memoEl.value);
+      statusEl.textContent = '저장됨';
+      setTimeout(()=> statusEl.textContent='', 1500);
+    }
+    (function(){ const m = localStorage.getItem(KEY); if(m) memoEl.value = m; })();
+  </script>
+</body>
+</html>
